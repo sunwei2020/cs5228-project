@@ -4,12 +4,10 @@ from functools import reduce
 
 data_train = pd.read_csv("data/train.csv")
 data_test = pd.read_csv("data/test.csv")
-data_test.head()
 
 numerical_features = ['num_beds', 'num_baths', 'size_sqft', 'planning_area']
 categorical_features = ['property_type', 'tenure', 'furnishing', 'built_year', 'subzone']
 predictor = 'price'
-
 
 # normalize the numerical features
 def normalize(data, features):
@@ -19,10 +17,15 @@ def normalize(data, features):
         data[feature] = (data[feature] - mean) / std
     return data
 
+def cal_quantile(data):
+    Q1 = np.quantile(data, 0.25)
+    Q3 = np.quantile(data, 0.75)
+    IQR = Q3 - Q1
+    floor = Q1 - 1.5 * IQR
+    ceil = Q3 + 1.5 * IQR
+    return floor, ceil
 
-def main():
-    X = data_test.loc[:, numerical_features+categorical_features]
-
+def encode_and_normal_data(X):
     # discard null values
     X = X.loc[X['num_beds'].notnull()]
     X = X.loc[X['num_baths'].notnull()]
@@ -49,15 +52,16 @@ def main():
     X.loc[X['furnishing']=='na', 'furnishing'] = 'unspecified'
 
     # transform 'built_year'. We only want 5 types: 'before 1990', '1990-2000', '2000-2010', '2010-2020', 'after 2020'
-    X = X.loc[X['built_year'].notnull()]
+    X.loc[X['built_year'].null()] = 0
     X['built_year'] = X['built_year'].astype(int)
-    X.loc[X['built_year'] <= 1990, 'built_year'] = 1990
+    X.loc[(X['built_year'] > 0) & (X['built_year'] <= 1990), 'built_year'] = 1990
     X.loc[(X['built_year'] > 1990) & (X['built_year'] <= 2000), 'built_year'] = 1995
     X.loc[(X['built_year'] > 2000) & (X['built_year'] <= 2010), 'built_year'] = 2005
     X.loc[(X['built_year'] > 2010) & (X['built_year'] <= 2020), 'built_year'] = 2015
     X.loc[X['built_year'] > 2020, 'built_year'] = 2025
     pd.value_counts(X['built_year'])
 
+    # transform 'planning_area'. Calculate the mean price of each area in train data and replace the area name with the mean price
     data_train['planning_area'] = data_train['planning_area'].str.lower()
     mean_price = data_train['price']/data_train['size_sqft']
     mean_price = pd.concat([data_train['planning_area'], mean_price], axis=1)
@@ -132,13 +136,24 @@ def main():
     # preprocess categorical data with one-hot encoding
     X.drop('planning_area', axis=1, inplace=True)
     X.drop('subzone', axis=1, inplace=True)
-    categoricals = ['property_type', 'tenure', 'built_year', 'furnishing', 'school_count', 'mrt_count']
+    categoricals = ['property_type', 'tenure', 'furnishing', 'school_count', 'mrt_count']
     X = pd.get_dummies(X, columns=categoricals, drop_first=True)
+    X = pd.get_dummies(X, columns='built_year')
 
     # normalize numerical data
     numericals = ['num_beds', 'num_baths', 'size_sqft', 'mean_price']
     X = normalize(X, numericals)
-    X.rename(columns={'mean_price':'planning_area'}, inplace=True)
+    return X
 
-    x_test = X
-    return x_test
+
+def get_test():
+    X = data_test.loc[:, numerical_features+categorical_features]
+    X = encode_and_normal_data(X)
+    return X
+
+
+def get_train():
+    X = data_train.loc[:, numerical_features+categorical_features+['price']]
+    X = encode_and_normal_data(X)
+    x_train, y_train = X.drop('price', axis=1), X['price']
+    return x_train, y_train
