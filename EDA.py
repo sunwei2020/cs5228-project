@@ -52,9 +52,9 @@ def encode_and_normal_data(X):
     X.loc[X['furnishing']=='na', 'furnishing'] = 'unspecified'
 
     # transform 'built_year'. We only want 5 types: 'before 1990', '1990-2000', '2000-2010', '2010-2020', 'after 2020'
-    X.loc[X['built_year'].null()] = 0
+    X = X.loc[X['built_year'].notnull()]
     X['built_year'] = X['built_year'].astype(int)
-    X.loc[(X['built_year'] > 0) & (X['built_year'] <= 1990), 'built_year'] = 1990
+    X.loc[X['built_year'] <= 1990, 'built_year'] = 1990
     X.loc[(X['built_year'] > 1990) & (X['built_year'] <= 2000), 'built_year'] = 1995
     X.loc[(X['built_year'] > 2000) & (X['built_year'] <= 2010), 'built_year'] = 2005
     X.loc[(X['built_year'] > 2010) & (X['built_year'] <= 2020), 'built_year'] = 2015
@@ -136,9 +136,8 @@ def encode_and_normal_data(X):
     # preprocess categorical data with one-hot encoding
     X.drop('planning_area', axis=1, inplace=True)
     X.drop('subzone', axis=1, inplace=True)
-    categoricals = ['property_type', 'tenure', 'furnishing', 'school_count', 'mrt_count']
+    categoricals = ['property_type', 'tenure', 'built_year', 'furnishing', 'school_count', 'mrt_count']
     X = pd.get_dummies(X, columns=categoricals, drop_first=True)
-    X = pd.get_dummies(X, columns='built_year')
 
     # normalize numerical data
     numericals = ['num_beds', 'num_baths', 'size_sqft', 'mean_price']
