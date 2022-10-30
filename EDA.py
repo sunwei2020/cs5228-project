@@ -28,32 +28,43 @@ def cal_quantile(data):
     return floor, ceil
 
 
-def encode_and_normal_data(X):
-    # fill beds and baths, delete data without both
+def encode_and_normal_data(X, is_test):
+    # fill beds and baths, delete training data without both
     X['num_beds'] = X.apply(
         lambda x: x['num_beds'] if x['num_beds'] > 0 else X[X['num_baths'] == x['num_baths']]['num_beds'].median(),
         axis=1)
     X['num_baths'] = X.apply(
         lambda x: x['num_baths'] if x['num_baths'] > 0 else X[X['num_beds'] == x['num_beds']]['num_baths'].median(),
         axis=1)
-    X = X.loc[X['num_baths'].notnull()]
+    if is_test:
+        X['num_beds'] = X['num_beds'].fillna(X['num_beds'].mean())
+        X['num_baths'] = X['num_baths'].fillna(X['num_baths'].mean())
+    else:
+        X = X.loc[X['num_beds'].notnull()]
+        X = X.loc[X['num_baths'].notnull()]
 
-    # discard outliers in 'size_sqft' (0, 10000)
-    X = X.loc[X['size_sqft'] > 0]
-    X = X.loc[X['size_sqft'] < 10000]
+    # discard training data outliers in 'size_sqft' (0, 10000)
+    if is_test == False:
+        X = X.loc[X['size_sqft'] > 0]
+        X = X.loc[X['size_sqft'] < 10000]
 
-    # transform 'property_type'. We only want four types: 'condo', 'hdb', 'house', 'bungalow'
+    # transform 'property_type'. We only want four types: 'condo', 'hdb', 'house', 'bungalow'.
+    # Because most of houses are 'condo', test data with other property_type are considered of 'condo'
     X['property_type'] = X.property_type.str.lower()
     X.loc[X['property_type'].str.contains('hdb'), 'property_type'] = 'hdb'
     X.loc[X['property_type'].str.contains('condo'), 'property_type'] = 'condo'
     X.loc[X['property_type'].str.contains('house'), 'property_type'] = 'house'
     X.loc[X['property_type'].str.contains('bungalow'), 'property_type'] = 'bungalow'
+    if is_test:
+        X.loc[X['property_type'].str.contains('hdb|condo|house|bungalow') == False, 'property_type'] = 'condo'
     X = X[X['property_type'].str.contains('hdb|condo|house|bungalow')]
 
     #  transform 'tenure'. We only want two types: 'freehold' and 'leasehold'
     X.loc[X['tenure'].isnull(), 'tenure'] = 'leasehold'
     X.loc[X['tenure'].str.contains('freehold'), 'tenure'] = 'freehold'
     X.loc[X['tenure'].str.contains('leasehold'), 'tenure'] = 'leasehold'
+    if is_test:
+        X['tenure'] = X['tenure'].fillna(X['tenure'].mode())
     X = X[X['tenure'].str.contains('freehold|leasehold')]
 
     # transform 'furnishing'. We only want four types: 'unfurnished', 'partial furnished', 'fully furnished', 'unspecified'
@@ -82,12 +93,17 @@ def encode_and_normal_data(X):
     pd.value_counts(X['built_year'])
 
     # transform 'planning_area'. Calculate the mean price of each area in train data and replace the area name with the mean price
+    # for test data without planning_area, replace with the mean of all mean_price
     data_train['planning_area'] = data_train['planning_area'].str.lower()
     mean_price = data_train['price'] / data_train['size_sqft']
     mean_price = pd.concat([data_train['planning_area'], mean_price], axis=1)
-    area_mean_price = mean_price.groupby('planning_area').median()
+    area_mean_price = mean_price.groupby('planning_area').mean()
     area_mean_price.rename(columns={0: 'mean_price'}, inplace=True)
-    X = pd.merge(X, area_mean_price, on='planning_area')
+    if is_test:
+        X = pd.merge(X, area_mean_price, on='planning_area', how='left')
+        X['mean_price'] = X['mean_price'].fillna(X['mean_price'].mean())
+    else:
+        X = pd.merge(X, area_mean_price, on='planning_area')
 
     # read auxiliary data
     shopping_mall = "data/auxiliary-data/sg-shopping-malls.csv"
@@ -148,10 +164,14 @@ def encode_and_normal_data(X):
     subzone_primary = subzone_primary.loc[:, ['subzone', 'school_count']]
     subzone_school = subzone_primary.copy()
 
-    # merge all auxiliary results to X
+    # merge all auxiliary results to X, fillna(0)
     merge_table = [subzone_mall, subzone_mrt, subzone_school]
     subzone_auxiliary = reduce(lambda left, right: pd.merge(left, right, on='subzone'), merge_table)
-    X = pd.merge(X, subzone_auxiliary, on='subzone')
+    if is_test:
+        X = pd.merge(X, subzone_auxiliary, on='subzone', how='left')
+        X = X.fillna(0)
+    else:
+        X = pd.merge(X, subzone_auxiliary, on='subzone')
 
     # preprocess categorical data with one-hot encoding
     X.drop('planning_area', axis=1, inplace=True)
@@ -167,15 +187,16 @@ def encode_and_normal_data(X):
 
 def get_test():
     X = data_test.loc[:, numerical_features + categorical_features]
-    X = encode_and_normal_data(X)
+    X = encode_and_normal_data(X, True)
     return X
 
 
 def get_train():
     X = data_train.loc[:, numerical_features + categorical_features + ['price']]
-    X = encode_and_normal_data(X)
+    X = encode_and_normal_data(X, False)
     x_train, y_train = X.drop('price', axis=1), X['price']
     return x_train, y_train
 
 
-# get_train()
+def save_pred(y_pred):
+    y_pred.to_csv("data/result.csv")
