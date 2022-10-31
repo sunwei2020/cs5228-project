@@ -198,5 +198,8 @@ def get_train():
     return x_train, y_train
 
 
-def save_pred(y_pred):
-    y_pred.to_csv("data/result.csv")
+def save_pred(y_pred, out_file):
+    df_y = pd.DataFrame(y_pred)
+    df_y.index.name = 'Id'
+    df_y.columns = ['Predicted']
+    df_y.to_csv(out_file)
