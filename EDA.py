@@ -13,8 +13,8 @@ predictor = 'price'
 # normalize the numerical features
 def normalize(data, features):
     for feature in features:
-        mean = np.mean(data[feature])
-        std = np.std(data[feature])
+        mean = np.mean(data_train[feature])
+        std = np.std(data_train[feature])
         data[feature] = (data[feature] - mean) / std
     return data
 
