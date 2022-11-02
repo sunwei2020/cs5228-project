@@ -1,3 +1,4 @@
+from base64 import encode
 import numpy as np
 import pandas as pd
 from functools import reduce
@@ -188,20 +189,27 @@ def encode_and_normal_data(X, is_test):
 
     # normalize numerical data
     numericals = ['num_beds', 'num_baths', 'size_sqft', 'mean_price']
-    X = normalize(X, numericals)
+    # X = normalize(X, numericals)
     return X
 
 
 def get_test():
-    X = data_test.loc[:, numerical_features + categorical_features]
-    X = encode_and_normal_data(X, True)
-    return X
+    x_train = data_train.loc[:, numerical_features + categorical_features + ['price']]
+    x_test = data_test.loc[:, numerical_features + categorical_features]
+    x_train = encode_and_normal_data(x_train, is_test=False)
+    x_test = encode_and_normal_data(x_test, is_test=True)
+    x_test = normalize(x_train, x_test, numerical_features, is_test=True)
+    # X = encode_and_normal_data(X, True)
+    return x_test
 
 
 def get_train():
-    X = data_train.loc[:, numerical_features + categorical_features + ['price']]
-    X = encode_and_normal_data(X, False)
-    x_train, y_train = X.drop('price', axis=1), X['price']
+    x_train = data_train.loc[:, numerical_features + categorical_features + ['price']]
+    x_test = data_test.loc[:, numerical_features + categorical_features]
+    x_train = encode_and_normal_data(x_train, is_test=False)
+    x_test = encode_and_normal_data(x_test, is_test=True)
+    x_train = normalize(x_train, x_test, numerical_features, is_test=False)
+    x_train, y_train = x_train.drop('price', axis=1), x_train['price']
     return x_train, y_train
 
 
