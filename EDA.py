@@ -10,13 +10,20 @@ categorical_features = ['property_type', 'tenure', 'furnishing', 'built_year', '
 predictor = 'price'
 
 
-# normalize the numerical features
-def normalize(data, features):
-    for feature in features:
-        mean = np.mean(data_train[feature])
-        std = np.std(data_train[feature])
-        data[feature] = (data[feature] - mean) / std
-    return data
+# normalize the numerical features, normalize test data with train statistics
+def normalize(train_data, test_data, features, is_test):
+    if is_test==True:
+        for feature in features:
+            mean = np.mean(train_data[feature])
+            std = np.std(train_data[feature])
+            test_data[feature] = (test_data[feature] - mean) / std
+        return test_data
+    else:
+        for feature in features:
+            mean = np.mean(train_data[feature])
+            std = np.std(train_data[feature])
+            train_data[feature] = (train_data[feature] - mean) / std
+        return train_data
 
 
 def cal_quantile(data):
