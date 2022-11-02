@@ -1,0 +1,8 @@
+{'optimizer': 'RMSprop',
+ 'neurons': 64,
+ 'learning_rate': 0.01,
+ 'init_weights': 'he_uniform',
+ 'epochs': 3,
+ 'dropout': 0.1,
+ 'batch_size': 200,
+ 'activation': 'relu'}
