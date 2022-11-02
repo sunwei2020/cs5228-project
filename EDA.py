@@ -198,7 +198,8 @@ def get_test():
     x_test = data_test.loc[:, numerical_features + categorical_features]
     x_train = encode_and_normal_data(x_train, is_test=False)
     x_test = encode_and_normal_data(x_test, is_test=True)
-    x_test = normalize(x_train, x_test, numerical_features, is_test=True)
+    numericals = ['num_beds', 'num_baths', 'size_sqft', 'mean_price']
+    x_test = normalize(x_train, x_test, numericals, is_test=True)
     # X = encode_and_normal_data(X, True)
     return x_test
 
@@ -208,7 +209,8 @@ def get_train():
     x_test = data_test.loc[:, numerical_features + categorical_features]
     x_train = encode_and_normal_data(x_train, is_test=False)
     x_test = encode_and_normal_data(x_test, is_test=True)
-    x_train = normalize(x_train, x_test, numerical_features, is_test=False)
+    numericals = ['num_beds', 'num_baths', 'size_sqft', 'mean_price']
+    x_train = normalize(x_train, x_test, numericals, is_test=False)
     x_train, y_train = x_train.drop('price', axis=1), x_train['price']
     return x_train, y_train
 
