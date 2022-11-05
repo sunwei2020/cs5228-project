@@ -4,6 +4,7 @@ import numpy as np
 numerical_features = ['num_beds', 'num_baths', 'size_sqft', 'planning_area', 'price']
 categorical_features = ['property_type', 'built_year']
 
+
 def normalize(train_data, features):
     for feature in features:
         mean = np.mean(train_data[feature])
@@ -13,7 +14,7 @@ def normalize(train_data, features):
 
 def data_processing(df_sample):
     df = df_sample.copy()
-    df = df.loc[:, numerical_features + categorical_features]
+    df = df.loc[:, ['listing_id']+numerical_features + categorical_features]
     df = df.dropna()
     
     df['property_type'] = df.property_type.str.lower()
